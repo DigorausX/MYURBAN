@@ -2,9 +2,12 @@ name: BKK Air force ONE Auto-Update
 
 on:
   schedule:
-    # ตั้งเวลารันอัตโนมัติทุกๆ เที่ยงคืนของไทย (UTC 17:00)
     - cron: '0 17 * * *'
-  workflow_dispatch: # ใส่ปุ่มให้เรากดอัปเดตเองได้ตลอดเวลา
+  workflow_dispatch:
+
+# บังคับขอสิทธิ์ให้หุ่นยนต์สามารถเขียนไฟล์ทับได้
+permissions:
+  contents: write
 
 jobs:
   build_and_deploy:
@@ -12,10 +15,10 @@ jobs:
     
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
