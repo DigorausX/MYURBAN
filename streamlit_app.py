@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 # ตั้งค่าหน้า Dashboard
 # ปรับตรงช่วงแสดงกราฟใน streamlit_app.py
-    st.write("### 24-Hour Probability Trend")
+st.write("### 24-Hour Probability Trend")
     fig, ax = plt.subplots(figsize=(10, 4), facecolor='#000000') # กำหนดขนาดคงที่
     ax.plot(probs, color='#38bdf8', linewidth=3, marker='o')
     ax.fill_between(range(len(probs)), probs, color='#38bdf8', alpha=0.2)
