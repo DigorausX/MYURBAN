@@ -31,6 +31,7 @@ st.markdown("""
 
 # 📦 แสดงผลใน Python
 st.write("### 🚨 CURRENT STATUS")
+# 📦 แก้ไขจุดที่ผิด: ต้องใส่ st.markdown(f''' ... ''', unsafe_allow_html=True)
 st.markdown(f'''
     <div class="metric-container">
         <div class="metric-box">
