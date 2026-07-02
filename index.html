@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { background: black; color: #ff4500; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .dashboard { width: 90%; max-width: 600px; border: 2px solid #ff4500; padding: 20px; border-radius: 15px; box-shadow: 0 0 20px #ff4500; }
+        .metric { font-size: 3rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>BKK AIR FORCE ONE</h1>
+        <div id="status">กำลังโหลดข้อมูล...</div>
+    </div>
+    <script>
+        // ดึงข้อมูลจาก API ของ Open-Meteo
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=13.75&longitude=100.50&current=precipitation')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('status').innerHTML = 
+            `<div>ฝนปัจจุบัน: <span class="metric">${data.current.precipitation} mm/h</span></div>`;
+        });
+    </script>
+</body>
+</html>
