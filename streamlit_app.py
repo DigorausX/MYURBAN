@@ -1,43 +1,36 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BKK AIR FORCE ONE - Tactical Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-</head>
-<body class="bg-black text-orange-500 font-sans p-4">
+import streamlit as st
+import pandas as pd
+import requests
+import matplotlib.pyplot as plt
 
-<div id="dashboard-content" class="max-w-md mx-auto space-y-4 bg-black">
-    <header class="text-center pb-2 border-b border-orange-900">
-        <h1 class="font-bold tracking-[0.2em] text-lg uppercase text-orange-500">BKK AIR FORCE ONE</h1>
-        <p id="status" class="text-[9px] text-orange-700 uppercase mt-1 tracking-widest">SYSTEM INITIALIZING...</p>
-    </header>
+st.set_page_config(page_title="BKK AIR FORCE ONE", layout="centered")
 
-    <div class="bg-neutral-900 p-4 rounded-xl border border-orange-900">
-        <canvas id="rainChart" height="200"></canvas>
-    </div>
+st.title("BKK AIR FORCE ONE")
+st.subheader("Tactical Weather Dashboard")
 
-    <button id="downloadBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-xs font-bold uppercase">
-        ดาวน์โหลดภาพรายงาน (.png)
-    </button>
-</div>
+# ดึงข้อมูลจาก API
+@st.cache_data(ttl=3600)
+def get_data():
+    url = 'https://api.open-meteo.com/v1/forecast?latitude=13.75&longitude=100.50&hourly=precipitation_probability&forecast_hours=24&timezone=Asia%2FBangkok'
+    return requests.get(url).json()
 
-<script>
-    // [ใส่ฟังก์ชัน loadTacticalData และ Logic การวาดกราฟจากขั้นตอนก่อนหน้านี้ไว้ตรงนี้]
-    //... (นำโค้ด JS ที่เราทำไว้มาวางในนี้)
+try:
+    data = get_data()
+    probs = data['hourly']['precipitation_probability']
+
+    # แสดงกราฟ
+    st.write("### แนวโน้มโอกาสฝน (24 ชม.)")
+    fig, ax = plt.subplots(facecolor='#000000')
+    ax.plot(probs, color='#f97316', linewidth=3)
+    ax.fill_between(range(len(probs)), probs, color='#f97316', alpha=0.2)
+    ax.set_facecolor('#000000')
+    ax.tick_params(colors='white')
+    st.pyplot(fig)
+
+    # แสดงตัวเลขสรุป
+    col1, col2 = st.columns(2)
+    col1.metric("โอกาสฝนตอนนี้", f"{probs[0]}%")
+    col2.metric("โอกาสฝนสูงสุด", f"{max(probs)}%")
     
-    // ฟังก์ชันดาวน์โหลดภาพ
-    document.getElementById('downloadBtn').addEventListener('click', function() {
-        html2canvas(document.querySelector("#dashboard-content")).then(canvas => {
-            const link = document.createElement('a');
-            link.download = 'BKK-Tactical-Report.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        });
-    });
-</script>
-</body>
-</html>
+except Exception as e:
+    st.error(f"เกิดข้อผิดพลาดในการโหลดข้อมูล: {e}")
