@@ -4,29 +4,24 @@ import requests
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
-import locale
 
-# ตั้งค่าหน้า Dashboard
 st.set_page_config(page_title="BKK AIR FORCE ONE", layout="wide")
 
-# ปรับแต่ง CSS ให้เป็นสไตล์ Tactical Dark
+# ⚡ พลัง CSS สไตล์ Tactical (ใส่สีส้มไฟฟ้าและกรอบเรืองแสง)
 st.markdown("""
     <style>
-    .main { background-color: #000000; }
-    h1, h2, h3 { color: #f97316; }
+    .stApp { background-color: #000000; }
+    h1 { color: #ff4500 !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 2px; }
+    .metric-card { 
+        background: #1a1a1a; padding: 20px; border-left: 5px solid #ff4500; 
+        border-radius: 5px; margin-bottom: 10px; color: white;
+    }
+    .big-font { font-size: 3rem !important; color: #ff4500 !important; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
-# 1. แสดงวันที่ภาษาไทย
-def get_thai_date():
-    days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"]
-    months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", 
-              "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
-    now = datetime.now()
-    return f"วัน{days[now.weekday()]}ที่ {now.day} {months[now.month-1]} {now.year + 543}"
-
-st.title("BKK AIR FORCE ONE")
-st.subheader(f"Tactical Weather Dashboard | {get_thai_date()}")
+st.title("🚀 BKK AIR FORCE ONE")
+st.write(f"### 🛡️ TACTICAL WEATHER DASHBOARD | {datetime.now().strftime('%d/%m/%Y')}")
 
 # ดึงข้อมูล
 @st.cache_data(ttl=3600)
@@ -38,25 +33,21 @@ data = get_data()
 probs = data['hourly']['precipitation_probability']
 current = data['current']
 
-# 2. กล่องสรุปค่าปัจจุบัน (Custom Dashboard UI)
-st.write("### CURRENT STATUS (ปัจจุบัน)")
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("ฝน (mm/h) / โอกาส", f"{current['precipitation']} | {probs[0]}%")
-with col2:
-    st.metric("ความเร็วลม", f"{current['wind_speed_10m']} km/h")
+# 📦 สร้าง Card สรุปสถานะแบบจี๊ดจ๊าด
+st.write("---")
+c1, c2 = st.columns(2)
+with c1:
+    st.markdown(f'<div class="metric-card">ฝน (mm/h) <div class="big-font">{current["precipitation"]}</div></div>', unsafe_allow_html=True)
+with c2:
+    st.markdown(f'<div class="metric-card">โอกาสฝน <div class="big-font">{probs[0]}%</div></div>', unsafe_allow_html=True)
 
-# 3. กราฟพยากรณ์ 24 ชั่วโมง
-st.write("### 24-Hour Probability Trend")
-time_labels = [datetime.now() + timedelta(hours=i) for i in range(24)]
-
+# 📉 กราฟ Tactical
+st.write("### ☢️ 24-Hour Probability Trend")
 fig, ax = plt.subplots(figsize=(10, 3), facecolor='#000000')
-ax.plot(time_labels, probs, color='#f97316', linewidth=3, marker='o')
-ax.fill_between(time_labels, probs, color='#f97316', alpha=0.2)
-
-ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
+ax.plot(probs, color='#ff4500', linewidth=4, marker='o', markersize=8, markerfacecolor='white')
+ax.fill_between(range(len(probs)), probs, color='#ff4500', alpha=0.15)
 ax.set_ylim(0, 100)
 ax.set_facecolor('#000000')
-ax.tick_params(colors='white')
+ax.tick_params(colors='#ff4500')
+for spine in ax.spines.values(): spine.set_edgecolor('#ff4500')
 st.pyplot(fig)
