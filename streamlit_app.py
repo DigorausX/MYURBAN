@@ -6,21 +6,43 @@ from datetime import datetime, timedelta
 
 st.set_page_config(page_title="BKK AIR FORCE ONE", layout="wide")
 
-# ⚡ CSS พลังสูง (สไตล์ Tactical Dark)
+# ⚡ อัปเกรด CSS ให้กล่องเด่นแบบ Tactical Glowing
 st.markdown("""
     <style>
-    .stApp { background-color: #000000; }
-    h1 { color: #ff4500 !important; font-weight: 800 !important; text-transform: uppercase; }
-    .forecast-card { 
-        background: #1a1a1a; padding: 15px; border: 1px solid #ff4500; 
-        border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between;
-        color: white; font-family: monospace;
+    .metric-container {
+        display: flex;
+        gap: 15px;
     }
+    .metric-box {
+        flex: 1;
+        background: linear-gradient(145deg, #1a1a1a, #000000);
+        padding: 25px;
+        border: 2px solid #ff4500;
+        border-radius: 15px;
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.4);
+        text-align: center;
+        transition: 0.3s;
+    }
+    .metric-box:hover { box-shadow: 0 0 25px rgba(255, 69, 0, 0.8); }
+    .metric-label { color: #aaaaaa; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px; }
+    .metric-value { color: #ffffff; font-size: 2.5rem; font-weight: 800; }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🚀 BKK AIR FORCE ONE")
-st.write(f"### 🛡️ TACTICAL WEATHER DASHBOARD | {datetime.now().strftime('%d/%m/%Y')}")
+# 📦 แสดงผลใน Python
+st.write("### 🚨 CURRENT STATUS")
+st.markdown(f'''
+    <div class="metric-container">
+        <div class="metric-box">
+            <div class="metric-label">ฝนปัจจุบัน (mm/h)</div>
+            <div class="metric-value">{data["current"]["precipitation"]}</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-label">ความเร็วลม (km/h)</div>
+            <div class="metric-value">{data["current"]["wind_speed_10m"]}</div>
+        </div>
+    </div>
+''', unsafe_allow_html=True)
 
 # ดึงข้อมูล
 @st.cache_data(ttl=3600)
