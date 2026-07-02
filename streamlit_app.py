@@ -4,14 +4,18 @@ import requests
 import matplotlib.pyplot as plt
 
 # ตั้งค่าหน้า Dashboard
-st.set_page_config(page_title="BKK AIR FORCE ONE", layout="wide")
-
-st.markdown("""
-    <style>
-    .main { background-color: #000000; color: #f97316; }
-    </style>
-""", unsafe_allow_html=True)
-
+# ปรับตรงช่วงแสดงกราฟใน streamlit_app.py
+    st.write("### 24-Hour Probability Trend")
+    fig, ax = plt.subplots(figsize=(10, 4), facecolor='#000000') # กำหนดขนาดคงที่
+    ax.plot(probs, color='#38bdf8', linewidth=3, marker='o')
+    ax.fill_between(range(len(probs)), probs, color='#38bdf8', alpha=0.2)
+    
+    # 🚨 จุดสำคัญ: ล็อกแกน Y ให้เริ่มที่ 0 และไปจบที่ 100 เสมอ
+    ax.set_ylim(0, 100) 
+    
+    ax.set_facecolor('#000000')
+    ax.tick_params(colors='white')
+    st.pyplot(fig)
 st.title("BKK AIR FORCE ONE - TACTICAL DASHBOARD")
 
 # ดึงข้อมูล API
