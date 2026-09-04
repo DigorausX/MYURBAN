@@ -3,7 +3,7 @@
         const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
         const BASE_TMD_URL = "http://www.rnd.tmd.go.th/api/hidxbc/";
 
-        // ฟังก์ชันช่วยสลับ Proxy อัตโนมัติถ้าตัวแรกตาย
+        // ฟังก์ชันช่วยสลับ Proxy อัตโนมัติถ้าตัวแรกตาย 
         function getProxyUrl(url, attempt = 1) {
             const encodedUrl = encodeURIComponent(url);
             if (attempt === 1) return "https://corsproxy.io/?" + encodedUrl;
