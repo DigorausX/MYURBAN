@@ -1,14 +1,50 @@
-<script>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HI Report BKK</title>
+    <!-- ใช้ PapaParse สำหรับดึงและอ่านไฟล์ CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; color: #333; max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; margin-bottom: 20px; }
+        .status-box { padding: 15px; border-radius: 8px; margin: 20px 0; font-weight: bold; font-size: 1.2em; }
+        .btn { background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em; width: 100%; margin-bottom: 15px;}
+        .btn:hover { background: #0056b3; }
+        textarea { width: 100%; height: 250px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; resize: none; box-sizing: border-box; margin-bottom: 10px;}
+        #loading { display: none; color: #007bff; font-weight: bold; margin-top: 10px;}
+        .log-text { font-size: 0.85em; color: #666; text-align: left; background: #eee; padding: 10px; border-radius: 6px; margin-top: 10px; display: none; white-space: pre-wrap;}
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🌡️ รายงานพยากรณ์ HI กทม.</h2>
+        <p>กวาดหาไฟล์ CSV ล่าสุดอัตโนมัติ</p>
+        <button class="btn" onclick="fetchData()">🔄 กวาดหาและดึงข้อมูล</button>
+        <div id="loading">⏳ กำลังทำงาน กรุณารอสักครู่...</div>
+        <div id="log" class="log-text"></div>
+        
+        <div id="result-area" style="display:none;">
+            <div id="status-display" class="status-box"></div>
+            <h3>📝 ข้อความสำหรับรายงาน:</h3>
+            <textarea id="report-text"></textarea>
+            <p style="font-size: 0.9em; color: gray; font-weight: bold;" id="img-suggestion"></p>
+        </div>
+    </div>
+
+    <script>
         const SHEET_ID = "1ZNHNl1V0BWoYG3pdRUr18pXUEEw6BVXPxjcVRKU1fmw";
         const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
         const BASE_TMD_URL = "http://www.rnd.tmd.go.th/api/hidxbc/";
 
-        // ฟังก์ชันช่วยสลับ Proxy อัตโนมัติถ้าตัวแรกตาย 
+        // ระบบ Proxy สำรอง 3 ชั้น สลับให้อัตโนมัติถ้ามีตัวไหนล่ม
         function getProxyUrl(url, attempt = 1) {
             const encodedUrl = encodeURIComponent(url);
             if (attempt === 1) return "https://corsproxy.io/?" + encodedUrl;
-            if (attempt === 2) return "https://api.codetabs.com/v1/proxy?quest=" + encodedUrl;
-            return "https://api.allorigins.win/raw?url=" + encodedUrl;
+            if (attempt === 2) return "https://api.allorigins.win/raw?url=" + encodedUrl;
+            return "https://api.codetabs.com/v1/proxy?quest=" + encodedUrl;
         }
 
         function addLog(msg) {
@@ -38,15 +74,11 @@
             // dates.fileDate = "20260904"; // เอาคอมเมนต์ออกถ้าจะล็อกวันเทส
             
             try {
-                // =========================================================
-                // 1. เข้าไปกวาดหารายชื่อไฟล์แบบ BeautifulSoup
-                // =========================================================
                 addLog(`🔍 กำลังค้นหาไฟล์ของวันที่ ${dates.fileDate} ในโฟลเดอร์กรมอุตุฯ...`);
                 
                 let indexHtml = "";
                 let fetchSuccess = false;
                 
-                // ลองดึงข้อมูลโดยใช้ Proxy สำรอง 3 ชั้น
                 for (let i = 1; i <= 3; i++) {
                     try {
                         const proxyIndexUrl = getProxyUrl(BASE_TMD_URL, i);
@@ -54,14 +86,14 @@
                         if (!indexResponse.ok) throw new Error("HTTP " + indexResponse.status);
                         indexHtml = await indexResponse.text();
                         fetchSuccess = true;
-                        break; // ดึงสำเร็จให้ออกจากลูป
+                        break;
                     } catch (e) {
                         addLog(`⚠️ Proxy ตัวที่ ${i} ไม่ตอบสนอง กำลังลองตัวสำรอง...`);
                     }
                 }
 
                 if (!fetchSuccess) {
-                    throw new Error("เซิร์ฟเวอร์ Proxy ฟรีถูกบล็อกทั้งหมด กรุณาลองใหม่ภายหลัง หรือปิด Ad-Blocker บนเบราว์เซอร์");
+                    throw new Error("เซิร์ฟเวอร์ Proxy ฟรีถูกบล็อกทั้งหมด กรุณาลองใหม่ภายหลัง");
                 }
                 
                 const parser = new DOMParser();
@@ -84,9 +116,6 @@
                 const finalTmdUrl = BASE_TMD_URL + targetFileName;
                 addLog(`✅ พบไฟล์เป้าหมาย: ${targetFileName}`);
 
-                // =========================================================
-                // 2. โหลดข้อมูล G-Sheets (รายชื่อสถานี)
-                // =========================================================
                 addLog("📥 กำลังดึงรายชื่อสถานีจาก Google Sheets...");
                 const proxySheetUrl = getProxyUrl(SHEET_URL, 1);
                 const sheetData = await new Promise((resolve, reject) => {
@@ -101,9 +130,6 @@
                 const bkkStationIds = bkkStations.map(row => row.WmoStationNumber);
                 if (bkkStationIds.length === 0) throw new Error("ไม่พบรายชื่อสถานีกรุงเทพฯ");
 
-                // =========================================================
-                // 3. โหลดข้อมูล CSV ของกรมอุตุฯ 
-                // =========================================================
                 addLog("📥 กำลังดึงข้อมูลพยากรณ์จากไฟล์ CSV...");
                 const proxyTmdUrl = getProxyUrl(finalTmdUrl, 1);
                 const tmdData = await new Promise((resolve, reject) => {
@@ -114,9 +140,6 @@
                     });
                 });
 
-                // =========================================================
-                // 4. ประมวลผลหาค่าสูงสุด
-                // =========================================================
                 addLog("⚙️ กำลังประมวลผลคำนวณหาจุดที่ร้อนที่สุด...");
                 let maxHi = -999;
                 let hottestStationName = "";
@@ -189,3 +212,5 @@
             document.getElementById('result-area').style.display = 'block';
         }
     </script>
+</body>
+</html>
