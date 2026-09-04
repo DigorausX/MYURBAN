@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HI Report BKK</title>
+    <title>HI Report BKK (Auto Scrape)</title>
     <!-- ใช้ PapaParse สำหรับดึงและอ่านไฟล์ CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -12,89 +12,131 @@
         .status-box { padding: 15px; border-radius: 8px; margin: 20px 0; font-weight: bold; font-size: 1.2em; }
         .btn { background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em; width: 100%; margin-bottom: 15px;}
         .btn:hover { background: #0056b3; }
-        textarea { width: 100%; height: 250px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; resize: none; box-sizing: border-box; }
-        #loading { display: none; color: #007bff; font-weight: bold; }
+        textarea { width: 100%; height: 250px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; resize: none; box-sizing: border-box; margin-bottom: 10px;}
+        #loading { display: none; color: #007bff; font-weight: bold; margin-top: 10px;}
+        .log-text { font-size: 0.85em; color: #666; text-align: left; background: #eee; padding: 10px; border-radius: 6px; margin-top: 10px; display: none; white-space: pre-wrap;}
     </style>
 </head>
 <body>
 
     <div class="card">
         <h2>🌡️ รายงานพยากรณ์ HI กทม.</h2>
-        <p>คลิกเพื่อดึงข้อมูลของวันนี้</p>
-        <button class="btn" onclick="fetchData()">🔄 ดึงข้อมูลพยากรณ์</button>
-        <div id="loading">⏳ กำลังประมวลผล กรุณารอสักครู่...</div>
+        <p>กวาดหาไฟล์ CSV ล่าสุดอัตโนมัติ</p>
+        <button class="btn" onclick="fetchData()">🔄 กวาดหาและดึงข้อมูล</button>
+        <div id="loading">⏳ กำลังทำงาน กรุณารอสักครู่...</div>
+        <div id="log" class="log-text"></div>
         
         <div id="result-area" style="display:none;">
             <div id="status-display" class="status-box"></div>
             <h3>📝 ข้อความสำหรับรายงาน:</h3>
             <textarea id="report-text"></textarea>
-            <p style="font-size: 0.9em; color: gray;" id="img-suggestion"></p>
+            <p style="font-size: 0.9em; color: gray; font-weight: bold;" id="img-suggestion"></p>
         </div>
     </div>
 
     <script>
-        // URL ของ Google Sheets ที่เปิด Public ไว้
-        const SHEET_ID = "1ZNHNI1V0BWoYG3pdRUr18pXUEEw6BVXPxjcVRKU1fmw";
+        // แก้ไข ID ของ Google Sheets
+        const SHEET_ID = "1ZNHNl1V0BWoYG3pdRUr18pXUEEw6BVXPxjcVRKU1fmw";
         const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+        const BASE_TMD_URL = "http://www.rnd.tmd.go.th/api/hidxbc/";
+
+        function addLog(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.style.display = 'block';
+            logDiv.innerText += msg + "\n";
+            console.log(msg);
+        }
 
         function formatDate() {
             const d = new Date();
             let year = d.getFullYear();
             let month = ('' + (d.getMonth() + 1)).padStart(2, '0');
             let day = ('' + d.getDate()).padStart(2, '0');
-            // ฟอร์แมต YYYYMMDD สำหรับดึงไฟล์อุตุ
-            let fileDate = `${year}${month}${day}`;
-            // ฟอร์แมต DD/MM/YYYY สำหรับแสดงผล
-            let reportDate = `${day}/${month}/${year}`;
-            return { fileDate, reportDate };
+            return { 
+                fileDate: `${year}${month}${day}`, 
+                reportDate: `${day}/${month}/${year}` 
+            };
         }
 
         async function fetchData() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('result-area').style.display = 'none';
-
+            document.getElementById('log').innerText = "";
+            
             const dates = formatDate();
-            // ตัวอย่าง: ถ้าต้องการล็อกวันที่เทส ให้แก้บรรทัดล่าง
-            // const targetDate = "20260904"; 
-            const targetDate = dates.fileDate;
-            const tmdUrl = `http://www.rnd.tmd.go.th/api/hidxbc/${targetDate}_hidxbc00.csv`;
-
+            // ตัวแปรสำหรับทดสอบ (เปิดคอมเมนต์เพื่อใช้ล็อกวันที่)
+            // dates.fileDate = "20260904"; 
+            
             try {
-                // 1. โหลดข้อมูลจาก G-Sheets (รายชื่อสถานี)
+                // =========================================================
+                // 1. เข้าไปกวาดหารายชื่อไฟล์แบบ BeautifulSoup
+                // =========================================================
+                addLog(`🔍 กำลังค้นหาไฟล์ของวันที่ ${dates.fileDate} ในโฟลเดอร์กรมอุตุฯ...`);
+                const proxyIndexUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(BASE_TMD_URL);
+                const indexResponse = await fetch(proxyIndexUrl);
+                const indexHtml = await indexResponse.text();
+                
+                // แปลง HTML มาหา tag <a>
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(indexHtml, 'text/html');
+                const links = doc.querySelectorAll('a');
+                
+                let targetFileName = null;
+                for (let link of links) {
+                    let href = link.getAttribute('href');
+                    // กรองเอาไฟล์ CSV ที่มีวันที่ของวันนี้
+                    if (href && href.includes(dates.fileDate) && href.endsWith('.csv')) {
+                        targetFileName = href;
+                        break;
+                    }
+                }
+
+                if (!targetFileName) {
+                    throw new Error(`ไม่พบไฟล์ CSV ของวันที่ ${dates.reportDate} บนหน้าเว็บกรมอุตุฯ`);
+                }
+                
+                const finalTmdUrl = BASE_TMD_URL + targetFileName;
+                addLog(`✅ พบไฟล์เป้าหมาย: ${targetFileName}`);
+
+                // =========================================================
+                // 2. โหลดข้อมูล G-Sheets (รายชื่อสถานี)
+                // =========================================================
+                addLog("📥 กำลังดึงรายชื่อสถานีจาก Google Sheets...");
+                const proxySheetUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(SHEET_URL);
                 const sheetData = await new Promise((resolve, reject) => {
-                    Papa.parse(SHEET_URL, {
-                        download: true,
-                        header: true,
+                    Papa.parse(proxySheetUrl, {
+                        download: true, header: true,
                         complete: results => resolve(results.data),
-                        error: err => reject("Sheet Error: " + err)
+                        error: err => reject("ดึงชีตไม่สำเร็จ: " + err)
                     });
                 });
 
-                // กรองรายชื่อเฉพาะสถานี กทม.
                 const bkkStations = sheetData.filter(row => row.Province === "กรุงเทพมหานคร");
                 const bkkStationIds = bkkStations.map(row => row.WmoStationNumber);
+                if (bkkStationIds.length === 0) throw new Error("ไม่พบรายชื่อสถานีกรุงเทพฯ");
 
-                // 2. โหลดข้อมูลกรมอุตุฯ (ผ่าน Proxy ป้องกัน CORS Error)
-                // สาเหตุที่ต้องมี corsproxy เพราะหน้าเว็บ HTML ปกติจะถูกบล็อกถ้าดึงไฟล์ข้ามโดเมน
-                const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(tmdUrl);
-                
+                // =========================================================
+                // 3. โหลดข้อมูล CSV ของกรมอุตุฯ 
+                // =========================================================
+                addLog("📥 กำลังดึงข้อมูลพยากรณ์จากไฟล์ CSV...");
+                const proxyTmdUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(finalTmdUrl);
                 const tmdData = await new Promise((resolve, reject) => {
-                    Papa.parse(proxyUrl, {
-                        download: true,
-                        header: false,
+                    Papa.parse(proxyTmdUrl, {
+                        download: true, header: false,
                         complete: results => resolve(results.data),
-                        error: err => reject("TMD Error: " + err)
+                        error: err => reject("ดึงข้อมูลอุตุฯ ไม่สำเร็จ: " + err)
                     });
                 });
 
-                // 3. ประมวลผลหาค่าสูงสุด
+                // =========================================================
+                // 4. ประมวลผลหาค่าสูงสุด
+                // =========================================================
+                addLog("⚙️ กำลังประมวลผลคำนวณหาจุดที่ร้อนที่สุด...");
                 let maxHi = -999;
                 let hottestStationName = "";
 
                 tmdData.forEach(row => {
-                    // row[0] คือ รหัสสถานี
                     if (row[0] && bkkStationIds.includes(row[0].toString())) {
-                        // คอลัมน์ที่ 3 เป็นต้นไปคือข้อมูลตัวเลข
                         let stationMax = -999;
                         for (let i = 3; i < row.length; i++) {
                             let val = parseFloat(row[i]);
@@ -104,21 +146,20 @@
                         }
                         if (stationMax > maxHi) {
                             maxHi = stationMax;
-                            // หาชื่อสถานีภาษาไทยจาก G-Sheet
                             let match = bkkStations.find(s => s.WmoStationNumber === row[0].toString());
                             if(match) hottestStationName = match.StationNameThai;
                         }
                     }
                 });
 
-                if (maxHi === -999) {
-                    throw new Error("ไม่พบข้อมูล กทม. ในไฟล์วันนี้");
-                }
+                if (maxHi === -999) throw new Error("ไฟล์อัปโหลดแล้ว แต่ไม่มีข้อมูลพิกัด กทม. ในไฟล์");
 
+                addLog("🎉 ประมวลผลสำเร็จ!");
                 renderResult(maxHi, hottestStationName, dates.reportDate);
 
             } catch (error) {
-                alert("เกิดข้อผิดพลาด: \n" + error + "\n\nอาจจะยังไม่มีไฟล์พยากรณ์ของวันนี้ครับ");
+                alert("เกิดข้อผิดพลาด: \n" + error);
+                addLog("❌ " + error);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
@@ -142,9 +183,9 @@
             const statusBox = document.getElementById('status-display');
             statusBox.style.backgroundColor = bgColor;
             statusBox.style.color = textColor;
-            statusBox.innerHTML = `HI สูงสุด: ${maxHi.toFixed(1)} °C<br><span style="font-size:0.8em">ตรวจพบที่: ${stationName}</span>`;
+            statusBox.innerHTML = `HI สูงสุด: ${maxHi.toFixed(1)} °C<br><span style="font-size:0.8em">สถานีจุดพีก: ${stationName}</span>`;
 
-            document.getElementById('img-suggestion').innerText = `ภาพเทมเพลตที่ต้องใช้: ${img}`;
+            document.getElementById('img-suggestion').innerText = `👉 นำข้อความด้านบนไปโพสต์คู่กับไฟล์ภาพ: ${img}`;
 
             const reportMsg = `📣 แจ้งเตือน!! ค่าดัชนีความร้อน (Heat Index)
 ประจำวันที่ ${dateStr}
