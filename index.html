@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HI Report BKK</title>
-    <!-- ใช้ PapaParse สำหรับดึงและอ่านไฟล์ CSV -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; color: #333; max-width: 600px; margin: 0 auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; margin-bottom: 20px; }
@@ -21,7 +19,7 @@
 
     <div class="card">
         <h2>🌡️ รายงานพยากรณ์ HI กทม.</h2>
-        <p>กวาดหาไฟล์ CSV ล่าสุดอัตโนมัติ</p>
+        <p>เชื่อมต่อ API ตรงกับ Google เซิร์ฟเวอร์</p>
         <button class="btn" onclick="fetchData()">🔄 กวาดหาและดึงข้อมูล</button>
         <div id="loading">⏳ กำลังทำงาน กรุณารอสักครู่...</div>
         <div id="log" class="log-text"></div>
@@ -35,34 +33,13 @@
     </div>
 
     <script>
-        const SHEET_ID = "1ZNHNl1V0BWoYG3pdRUr18pXUEEw6BVXPxjcVRKU1fmw";
-        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
-        const BASE_TMD_URL = "http://www.rnd.tmd.go.th/api/hidxbc/";
-
-        // ระบบ Proxy สำรอง 3 ชั้น สลับให้อัตโนมัติถ้ามีตัวไหนล่ม
-        function getProxyUrl(url, attempt = 1) {
-            const encodedUrl = encodeURIComponent(url);
-            if (attempt === 1) return "https://corsproxy.io/?" + encodedUrl;
-            if (attempt === 2) return "https://api.allorigins.win/raw?url=" + encodedUrl;
-            return "https://api.codetabs.com/v1/proxy?quest=" + encodedUrl;
-        }
+        // 🛑 นำ URL เว็บแอปที่ได้จาก Google Apps Script มาวางในเครื่องหมายคำพูดด้านล่างนี้
+        const API_URL = "https://script.google.com/macros/s/AKfycbx_PO130JJKWNfpu65buNZ3-PlMIazJ5iGTk8DuzBYSqi2pOKJ1rr-AJpu9goU7atrA/exec";
 
         function addLog(msg) {
             const logDiv = document.getElementById('log');
             logDiv.style.display = 'block';
             logDiv.innerText += msg + "\n";
-            console.log(msg);
-        }
-
-        function formatDate() {
-            const d = new Date();
-            let year = d.getFullYear();
-            let month = ('' + (d.getMonth() + 1)).padStart(2, '0');
-            let day = ('' + d.getDate()).padStart(2, '0');
-            return { 
-                fileDate: `${year}${month}${day}`, 
-                reportDate: `${day}/${month}/${year}` 
-            };
         }
 
         async function fetchData() {
@@ -70,105 +47,24 @@
             document.getElementById('result-area').style.display = 'none';
             document.getElementById('log').innerText = "";
             
-            const dates = formatDate();
-            // dates.fileDate = "20260904"; // เอาคอมเมนต์ออกถ้าจะล็อกวันเทส
+            addLog("📡 กำลังส่งคำสั่งไปที่เซิร์ฟเวอร์ Google...");
+            addLog("⚙️ ให้ Google ดึงข้อมูลจากอุตุฯ และชีต เพื่อหลีกเลี่ยงการถูกบล็อก...");
             
             try {
-                addLog(`🔍 กำลังค้นหาไฟล์ของวันที่ ${dates.fileDate} ในโฟลเดอร์กรมอุตุฯ...`);
+                // เรียกใช้ API หลังบ้านที่เราสร้างเอง
+                const response = await fetch(API_URL);
+                const data = await response.json();
                 
-                let indexHtml = "";
-                let fetchSuccess = false;
-                
-                for (let i = 1; i <= 3; i++) {
-                    try {
-                        const proxyIndexUrl = getProxyUrl(BASE_TMD_URL, i);
-                        const indexResponse = await fetch(proxyIndexUrl);
-                        if (!indexResponse.ok) throw new Error("HTTP " + indexResponse.status);
-                        indexHtml = await indexResponse.text();
-                        fetchSuccess = true;
-                        break;
-                    } catch (e) {
-                        addLog(`⚠️ Proxy ตัวที่ ${i} ไม่ตอบสนอง กำลังลองตัวสำรอง...`);
-                    }
-                }
-
-                if (!fetchSuccess) {
-                    throw new Error("เซิร์ฟเวอร์ Proxy ฟรีถูกบล็อกทั้งหมด กรุณาลองใหม่ภายหลัง");
+                if (!data.success) {
+                    throw new Error(data.message);
                 }
                 
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(indexHtml, 'text/html');
-                const links = doc.querySelectorAll('a');
+                addLog("🎉 ดึงข้อมูลและประมวลผลสำเร็จ!");
+                renderResult(data.maxHi, data.stationName, data.reportDate);
                 
-                let targetFileName = null;
-                for (let link of links) {
-                    let href = link.getAttribute('href');
-                    if (href && href.includes(dates.fileDate) && href.endsWith('.csv')) {
-                        targetFileName = href;
-                        break;
-                    }
-                }
-
-                if (!targetFileName) {
-                    throw new Error(`ไม่พบไฟล์ CSV ของวันที่ ${dates.reportDate} บนหน้าเว็บกรมอุตุฯ`);
-                }
-                
-                const finalTmdUrl = BASE_TMD_URL + targetFileName;
-                addLog(`✅ พบไฟล์เป้าหมาย: ${targetFileName}`);
-
-                addLog("📥 กำลังดึงรายชื่อสถานีจาก Google Sheets...");
-                const proxySheetUrl = getProxyUrl(SHEET_URL, 1);
-                const sheetData = await new Promise((resolve, reject) => {
-                    Papa.parse(proxySheetUrl, {
-                        download: true, header: true,
-                        complete: results => resolve(results.data),
-                        error: err => reject("ดึงชีตไม่สำเร็จ: " + err)
-                    });
-                });
-
-                const bkkStations = sheetData.filter(row => row.Province === "กรุงเทพมหานคร");
-                const bkkStationIds = bkkStations.map(row => row.WmoStationNumber);
-                if (bkkStationIds.length === 0) throw new Error("ไม่พบรายชื่อสถานีกรุงเทพฯ");
-
-                addLog("📥 กำลังดึงข้อมูลพยากรณ์จากไฟล์ CSV...");
-                const proxyTmdUrl = getProxyUrl(finalTmdUrl, 1);
-                const tmdData = await new Promise((resolve, reject) => {
-                    Papa.parse(proxyTmdUrl, {
-                        download: true, header: false,
-                        complete: results => resolve(results.data),
-                        error: err => reject("ดึงข้อมูลอุตุฯ ไม่สำเร็จ: " + err)
-                    });
-                });
-
-                addLog("⚙️ กำลังประมวลผลคำนวณหาจุดที่ร้อนที่สุด...");
-                let maxHi = -999;
-                let hottestStationName = "";
-
-                tmdData.forEach(row => {
-                    if (row[0] && bkkStationIds.includes(row[0].toString())) {
-                        let stationMax = -999;
-                        for (let i = 3; i < row.length; i++) {
-                            let val = parseFloat(row[i]);
-                            if (!isNaN(val) && val > stationMax) {
-                                stationMax = val;
-                            }
-                        }
-                        if (stationMax > maxHi) {
-                            maxHi = stationMax;
-                            let match = bkkStations.find(s => s.WmoStationNumber === row[0].toString());
-                            if(match) hottestStationName = match.StationNameThai;
-                        }
-                    }
-                });
-
-                if (maxHi === -999) throw new Error("ไฟล์อัปโหลดแล้ว แต่ไม่มีข้อมูลพิกัด กทม. ในไฟล์");
-
-                addLog("🎉 ประมวลผลสำเร็จ!");
-                renderResult(maxHi, hottestStationName, dates.reportDate);
-
             } catch (error) {
-                alert("เกิดข้อผิดพลาด: \n" + error);
-                addLog("❌ " + error);
+                addLog("❌ เกิดข้อผิดพลาด: " + error.message);
+                alert("เกิดข้อผิดพลาด: \n" + error.message);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
